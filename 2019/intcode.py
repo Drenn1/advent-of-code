@@ -26,16 +26,16 @@ paramCounts = [ 0, 3, 3, 1, 1, 2, 2, 3, 3, 1 ]
 MEM_SIZE = 10000
 
 class Intcode:
-    def __init__(self,program):
-        self.program = program.copy()
+    def __init__(self,memory):
+        self.memory = memory.copy()
         self.pc = 0
         self.relbase = 0
 
-        if len(self.program) < MEM_SIZE:
-            self.program.extend([0] * (MEM_SIZE - len(self.program)))
+        if len(self.memory) < MEM_SIZE:
+            self.memory.extend([0] * (MEM_SIZE - len(self.memory)))
 
     def copy(self):
-        p = Intcode(self.program)
+        p = Intcode(self.memory)
         p.pc = self.pc
         p.relbase = self.relbase
         return p
@@ -43,19 +43,19 @@ class Intcode:
     # Normally runs until termination, but if "returnOutput"==True, this returns
     # when output is sent.
     def run(self, inputFunc, outputFunc, returnOutput=False, debug=False):
-        program = self.program
+        memory = self.memory
 
         def readParamPosition(offset):
-            return program[program[self.pc + offset]]
+            return memory[memory[self.pc + offset]]
         def readParamImmediate(offset):
-            return program[self.pc + offset]
+            return memory[self.pc + offset]
         def readParamRelative(offset):
-            return program[program[self.pc + offset] + self.relbase]
+            return memory[memory[self.pc + offset] + self.relbase]
 
         def writeParamPosition(offset, val):
-            program[program[self.pc + offset]] = val
+            memory[memory[self.pc + offset]] = val
         def writeParamRelative(offset, val):
-            program[program[self.pc + offset] + self.relbase] = val
+            memory[memory[self.pc + offset] + self.relbase] = val
 
         readParamTable = [readParamPosition, readParamImmediate, readParamRelative]
         writeParamTable = [writeParamPosition, 0, writeParamRelative]
@@ -73,7 +73,7 @@ class Intcode:
                 return
             sys.stdout.write(opAliases[op])
             for i in range(paramCounts[op]):
-                b = program[self.pc+i+1]
+                b = memory[self.pc+i+1]
                 if paramModeString[-i] == 0:
                     sys.stdout.write(' [' + str(b)  + ']')
                 elif paramModeString[-i] == 1:
@@ -84,19 +84,14 @@ class Intcode:
 
 
         while True:
-            paramModeString = str(program[self.pc])[:-2]
+            paramModeString = str(memory[self.pc])[:-2]
             while len(paramModeString) < 3:
                 paramModeString = '0' + paramModeString
 
-            op = int(str(program[self.pc])[-2:])
+            op = int(str(memory[self.pc])[-2:])
 
             if debug:
                 printOpInfo(op)
-
-            # Init again after printOpInfo
-            paramModeString = str(program[self.pc])[:-2]
-            while len(paramModeString) < 3:
-                paramModeString = '0' + paramModeString
 
             if op == 99: # END
                 break
@@ -144,11 +139,15 @@ class Intcode:
         return None
 
 
+def fromFile(f):
+    f = open(f)
+    p = Intcode([int(x.strip()) for x in f.read().split(',')])
+    f.close()
+    return p
+
 def prepProblem(prob, subprob, expected=None):
     global origIntcode
-    inF = open('d' + str(prob) + '.in')
-    origIntcode = [int(x.strip()) for x in inF.read().split(',')]
-    inF.close()
+    origIntcode = fromFile('d' + str(prob) + '.in')
     print('\n-----------------')
     print('PROBLEM ' + str(prob) + '-' + str(subprob))
     if expected is not None:
@@ -162,11 +161,11 @@ def defaultOutputFunc(v):
 if __name__ == "__main__":
     if 1: # Day 5
         prepProblem(5, 1, 16434972)
-        p = Intcode(origIntcode)
+        p = origIntcode.copy()
         p.run(lambda: 1, defaultOutputFunc, debug=False)
 
         prepProblem(5, 2, 16694270)
-        p = Intcode(origIntcode)
+        p = origIntcode.copy()
         p.run(lambda: 5, defaultOutputFunc, debug=False)
 
 
@@ -186,7 +185,7 @@ if __name__ == "__main__":
                     return phase
 
             for i in range(len(perm)):
-                p = Intcode(origIntcode)
+                p = origIntcode.copy()
                 finalInput = functools.partial(inputFunc, perm[i], lastOutputFunction)
                 lastOutputFunction = functools.partial(p.run, finalInput, None, returnOutput=True)
 
@@ -201,7 +200,7 @@ if __name__ == "__main__":
 
         bestOutput = 0
         for perm in itertools.permutations([5,6,7,8,9]):
-            programs = [x.copy() for x in [Intcode(origIntcode)] * len(perm)]
+            programs = [x.copy() for x in [origIntcode.copy()] * len(perm)]
             gotPhaseList = [False] * len(perm)
             gotInitialInput = False
 
@@ -236,9 +235,9 @@ if __name__ == "__main__":
 
     if 1: # Day 9
         prepProblem(9, 1, 3598076521)
-        p = Intcode(origIntcode)
+        p = origIntcode.copy()
         p.run(lambda: 1, defaultOutputFunc)
 
         prepProblem(9, 2, 90722)
-        p = Intcode(origIntcode)
+        p = origIntcode.copy()
         p.run(lambda: 2, defaultOutputFunc)
